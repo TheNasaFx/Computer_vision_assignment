@@ -1,0 +1,65 @@
+# ═══════════════════════════════════════════════════════════════
+#  Real-Time Object Detection System — Configuration
+# ═══════════════════════════════════════════════════════════════
+
+model:
+  name: yolo11n.pt            # yolo11n/s/m/l/x .pt
+  confidence: 0.35
+  iou_threshold: 0.45
+  max_detections: 100
+  device: "0"                  # "0" for GPU, "cpu" for CPU
+  half: true                   # FP16 inference
+  img_size: 640
+  classes: null                # null = all classes, or list e.g. [0, 1, 2]
+
+stream:
+  sources:                     # list of inputs
+    - "0"                      # webcam index or path/url
+  buffer_size: 2
+  reconnect_delay: 5.0
+  max_retries: 10
+
+tracker:
+  enabled: true
+  type: bytetrack              # bytetrack or botsort
+  track_high_thresh: 0.5
+  track_low_thresh: 0.1
+  new_track_thresh: 0.6
+  track_buffer: 30
+  match_thresh: 0.8
+
+events:
+  enabled: false
+  roi_zones: []                # list of polygon zones
+  line_crossing:
+    enabled: false
+    lines: []                  # [{start: [x1,y1], end: [x2,y2], name: "line1"}]
+
+visualization:
+  show_window: true
+  show_fps: true
+  show_boxes: true
+  show_labels: true
+  show_confidence: true
+  show_tracks: true
+  box_thickness: 2
+  font_scale: 0.6
+  trail_length: 30
+
+output:
+  save_video: false
+  video_path: "output/result.mp4"
+  video_fps: 30
+  codec: "mp4v"
+  json_output: false
+  json_path: "output/detections.json"
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+
+logging:
+  level: "INFO"                # DEBUG, INFO, WARNING, ERROR
+  file: "logs/app.log"
+  console: true
