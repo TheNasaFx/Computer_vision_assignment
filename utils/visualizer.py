@@ -36,7 +36,9 @@ class Visualizer:
 
     def draw(self, frame: np.ndarray, result: FrameResult,
              tracks: dict[int, Track] | None = None,
-             fps: float = 0.0) -> np.ndarray:
+             fps: float = 0.0, *,
+             playback_speed: float = 1.0,
+             paused: bool = False) -> np.ndarray:
         """Render all overlays and return annotated frame."""
         out = frame.copy()
 
@@ -51,7 +53,8 @@ class Visualizer:
 
         # HUD
         if self.show_fps:
-            self._draw_hud(out, fps, result.inference_ms, len(result.detections))
+            self._draw_hud(out, fps, result.inference_ms, len(result.detections),
+                           playback_speed=playback_speed, paused=paused)
 
         return out
 
@@ -90,22 +93,37 @@ class Visualizer:
                 cv2.line(frame, pts[i - 1], pts[i], color, thickness, cv2.LINE_AA)
 
     def _draw_hud(self, frame: np.ndarray, fps: float,
-                  inf_ms: float, n_det: int) -> None:
+                  inf_ms: float, n_det: int, *,
+                  playback_speed: float = 1.0,
+                  paused: bool = False) -> None:
         h, w = frame.shape[:2]
+
+        speed_label = f"Speed: {playback_speed:.2g}x"
+        if paused:
+            speed_label = "PAUSED"
+
         lines = [
             f"FPS: {fps:.1f}",
             f"Inference: {inf_ms:.1f} ms",
             f"Detections: {n_det}",
+            speed_label,
         ]
         # Semi-transparent background
         overlay = frame.copy()
-        cv2.rectangle(overlay, (8, 8), (220, 12 + 28 * len(lines)), (0, 0, 0), -1)
+        cv2.rectangle(overlay, (8, 8), (250, 12 + 28 * len(lines)), (0, 0, 0), -1)
         cv2.addWeighted(overlay, 0.55, frame, 0.45, 0, frame)
 
         for i, line in enumerate(lines):
+            color = (0, 255, 255) if i == 3 and paused else (0, 255, 0)
             cv2.putText(frame, line, (14, 32 + 28 * i),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.65,
-                        (0, 255, 0), 2, cv2.LINE_AA)
+                        color, 2, cv2.LINE_AA)
+
+        # Controls hint (bottom-left)
+        hint = "+/-: speed | Space: pause | R: reset | Q: quit"
+        cv2.putText(frame, hint, (14, h - 14),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.45,
+                    (180, 180, 180), 1, cv2.LINE_AA)
 
     @staticmethod
     def _color_for(idx: int) -> tuple[int, int, int]:

@@ -22,7 +22,7 @@ class InferenceResponse(BaseModel):
 
 
 class ModelSwitchRequest(BaseModel):
-    model_name: str = Field(..., examples=["yolo11n.pt", "yolo11s.pt", "yolo11m.pt"])
+    model_name: str = Field(..., examples=["yolo26n.pt", "yolo26s.pt", "yolo26l.pt"])
 
 
 class StatusResponse(BaseModel):

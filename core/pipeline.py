@@ -57,9 +57,12 @@ class DetectionPipeline:
 
         scfg = self.cfg.get("stream", {})
         for src in sources:
+            # Video files get larger buffer so frames aren't dropped
+            is_file = not str(src).isdigit()
+            buf = scfg.get("buffer_size", 128 if is_file else 2)
             g = FrameGrabber(
                 source=src,
-                buffer_size=scfg.get("buffer_size", 2),
+                buffer_size=buf,
                 reconnect_delay=scfg.get("reconnect_delay", 5.0),
                 max_retries=scfg.get("max_retries", 10),
             )
@@ -75,10 +78,12 @@ class DetectionPipeline:
                 logger.error("Failed to start grabber for %s", g.source)
 
         self._running = True
+        self._playback_speed = 1.0
+        self._paused = False
         fps_counter = _FPSCounter()
         json_records: list[dict] = []
 
-        logger.info("Pipeline running — press 'q' to quit")
+        logger.info("Pipeline running — q:quit  +/-:speed  space:pause")
 
         try:
             while self._running:
@@ -106,7 +111,9 @@ class DetectionPipeline:
                     # ── Visualization ──
                     fps_counter.tick()
                     vis_frame = self.visualizer.draw(
-                        frame, result, self.tracker.tracks, fps_counter.fps)
+                        frame, result, self.tracker.tracks, fps_counter.fps,
+                        playback_speed=self._playback_speed,
+                        paused=self._paused)
 
                     if self.event_processor.enabled:
                         vis_frame = self.event_processor.draw_zones(vis_frame)
@@ -130,10 +137,39 @@ class DetectionPipeline:
 
                 # Handle key events
                 if self._show_window:
-                    key = cv2.waitKey(1) & 0xFF
+                    # Use original video FPS for proper playback timing
+                    source_fps = self._grabbers[0].source_fps if self._grabbers else 30.0
+                    base_delay_ms = 1000.0 / max(source_fps, 1.0)
+                    wait_ms = max(1, int(base_delay_ms / self._playback_speed))
+                    if self._paused:
+                        wait_ms = 50  # idle while paused
+                    key = cv2.waitKey(wait_ms) & 0xFF
                     if key == ord("q"):
                         logger.info("Quit requested")
                         break
+                    elif key == ord("+") or key == ord("="):
+                        self._playback_speed = min(8.0, self._playback_speed * 2)
+                        logger.info("Speed: %.1fx", self._playback_speed)
+                    elif key == ord("-"):
+                        self._playback_speed = max(0.25, self._playback_speed / 2)
+                        logger.info("Speed: %.1fx", self._playback_speed)
+                    elif key == ord(" "):
+                        self._paused = not self._paused
+                        logger.info("Paused" if self._paused else "Resumed")
+                    elif key == ord("r"):
+                        self._playback_speed = 1.0
+                        logger.info("Speed reset: 1.0x")
+
+                    # Block while paused
+                    while self._paused and self._running:
+                        pk = cv2.waitKey(50) & 0xFF
+                        if pk == ord(" "):
+                            self._paused = False
+                            logger.info("Resumed")
+                            break
+                        elif pk == ord("q"):
+                            self._running = False
+                            break
 
         except KeyboardInterrupt:
             logger.info("Interrupted by user")

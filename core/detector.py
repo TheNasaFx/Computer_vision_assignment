@@ -61,8 +61,8 @@ class Detector:
 
     def __init__(self, cfg: dict):
         model_cfg = cfg.get("model", {})
-        self.model_name: str = model_cfg.get("name", "yolo11n.pt")
-        self.confidence: float = model_cfg.get("confidence", 0.35)
+        self.model_name: str = model_cfg.get("name", "yolo26s.pt")
+        self.confidence: float = model_cfg.get("confidence", 0.25)
         self.iou_threshold: float = model_cfg.get("iou_threshold", 0.45)
         self.max_det: int = model_cfg.get("max_detections", 100)
         requested_device: str = model_cfg.get("device", "0")

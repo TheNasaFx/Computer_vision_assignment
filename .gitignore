@@ -10,3 +10,6 @@ runs/
 output/
 logs/
 .env
+*.mp4
+*.avi
+*.mov

@@ -3,9 +3,9 @@
 # ═══════════════════════════════════════════════════════════════
 
 model:
-  name: yolo11n.pt            # yolo11n/s/m/l/x .pt
-  confidence: 0.35
-  iou_threshold: 0.45
+  name: yolo26s.pt            # yolo26n/s/m/l/x .pt
+  confidence: 0.25
+  iou_threshold: 0.5
   max_detections: 100
   device: "0"                  # "0" for GPU, "cpu" for CPU
   half: true                   # FP16 inference

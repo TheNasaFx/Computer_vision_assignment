@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Pre-download default model
-RUN python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')"
+RUN python -c "from ultralytics import YOLO; YOLO('yolo26s.pt')"
 
 EXPOSE 8000
 

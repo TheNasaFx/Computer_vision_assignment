@@ -34,6 +34,8 @@ class FrameGrabber:
         self._thread: threading.Thread | None = None
         self._frame_id = 0
         self._fps: float = 0.0
+        self._source_fps: float = 30.0  # original video FPS
+        self._is_file: bool = not str(source).isdigit()
 
     # ── public API ─────────────────────────────────────────────
 
@@ -48,11 +50,11 @@ class FrameGrabber:
         return True
 
     def read(self) -> tuple[bool, np.ndarray | None, int]:
-        """Get latest frame (non-blocking). Returns (ok, frame, frame_id)."""
+        """Get next frame in order. Returns (ok, frame, frame_id)."""
         with self._lock:
             if len(self._buffer) == 0:
                 return False, None, self._frame_id
-            frame = self._buffer[-1]  # always latest
+            frame = self._buffer.popleft()  # FIFO: sequential playback
             return True, frame, self._frame_id
 
     def stop(self) -> None:
@@ -71,6 +73,15 @@ class FrameGrabber:
         return self._fps
 
     @property
+    def source_fps(self) -> float:
+        """Original FPS of the video source."""
+        return self._source_fps
+
+    @property
+    def is_file(self) -> bool:
+        return self._is_file
+
+    @property
     def resolution(self) -> tuple[int, int]:
         if self._cap and self._cap.isOpened():
             w = int(self._cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -87,8 +98,12 @@ class FrameGrabber:
             if self._cap.isOpened():
                 # Optimize capture
                 self._cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-                logger.info("Capture opened: %s (%dx%d)",
-                            self.source, *self.resolution)
+                # Read original FPS for video files
+                raw_fps = self._cap.get(cv2.CAP_PROP_FPS)
+                if raw_fps and raw_fps > 0:
+                    self._source_fps = raw_fps
+                logger.info("Capture opened: %s (%dx%d @ %.1f fps)",
+                            self.source, *self.resolution, self._source_fps)
                 return True
             logger.warning("Open attempt %d/%d failed for %s",
                            attempt, self.max_retries, self.source)
@@ -103,11 +118,17 @@ class FrameGrabber:
 
     def _capture_loop(self) -> None:
         t_prev = time.perf_counter()
+        frame_interval = 1.0 / max(self._source_fps, 1.0) if self._is_file else 0
         while self._running:
             if self._cap is None or not self._cap.isOpened():
                 if not self._open():
                     break
                 continue
+
+            # For video files, wait if buffer is full to avoid frame loss
+            if self._is_file:
+                while self._running and len(self._buffer) >= self.buffer_size:
+                    time.sleep(0.005)
 
             ret, frame = self._cap.read()
             if not ret:
