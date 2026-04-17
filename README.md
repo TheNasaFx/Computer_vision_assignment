@@ -1,8 +1,8 @@
-# 🎯 YOLO26 Real-Time Object Detection System
+# 🎯 Smart Study Space Monitor — YOLO26 Real-Time Detection System
 
 <div align="center">
 
-**Production-grade real-time object detection, tracking, and analysis platform**
+**AI-powered study space monitoring with person-object ownership, seat occupancy, and unattended item detection**
 
 Built with **YOLO26** · **FastAPI** · **Next.js** · **OpenCV**
 
@@ -17,11 +17,15 @@ Built with **YOLO26** · **FastAPI** · **Next.js** · **OpenCV**
 
 ## 📋 Overview
 
-A full-stack computer vision application that performs **real-time object detection and tracking** using the latest **YOLO26** model. The system supports video file upload, live camera feed, and REST API inference — all accessible through a modern web interface.
+A full-stack computer vision application that monitors **study spaces** (libraries, co-working areas) using **YOLO26** real-time object detection and tracking. The system detects people and their belongings, assigns ownership via proximity analysis, tracks desk/seat occupancy, and alerts on unattended items.
 
 ### Key Capabilities
 
-- **80+ COCO object classes** — person, car, bicycle, dog, and more
+- **Smart Study Space Monitor** — person-object ownership, seat occupancy, unattended alerts
+- **80+ COCO object classes** — person, laptop, phone, book, bag, cup, and more
+- **Person-Object Ownership** — automatically assigns nearby objects to the closest person
+- **Desk Zone Occupancy** — configurable polygon zones with real-time occupied/vacant status
+- **Unattended Item Detection** — alerts when objects are left without a nearby person
 - **Real-time browser-based detection** — video upload and live camera
 - **Dual-loop rendering architecture** — 60fps smooth playback with background AI inference
 - **Multi-object tracking** — ByteTrack / BoTSORT with persistent IDs
@@ -44,9 +48,12 @@ A full-stack computer vision application that performs **real-time object detect
 ┌───────▼────────────────▼─────────────────────────────────────┐
 │                  FastAPI Backend (Python)                     │
 │  ┌───────────┐  ┌────────────┐  ┌─────────┐  ┌───────────┐  │
-│  │  YOLO26   │  │  ByteTrack │  │  Event   │  │  Video    │  │
-│  │  Detector │→ │  Tracker   │→ │  Engine  │→ │  Writer   │  │
+│  │  YOLO26   │  │  ByteTrack │  │  Study   │  │  Video    │  │
+│  │  Detector │→ │  Tracker   │→ │  Space   │→ │  Writer   │  │
 │  └───────────┘  └────────────┘  └─────────┘  └───────────┘  │
+│                                  ├ Proximity (ownership)     │
+│                                  ├ Zones (occupancy)         │
+│                                  └ Alerts (unattended)       │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -63,20 +70,25 @@ Biydaalt/
 │   ├── tracker.py              # Track history & trail management
 │   ├── stream.py               # Threaded async frame grabber
 │   ├── pipeline.py             # Main detection pipeline orchestrator
-│   └── events.py               # ROI zone & line-crossing events
+│   ├── events.py               # ROI zone & line-crossing events
+│   ├── proximity.py            # Person-object ownership engine
+│   ├── zones.py                # Desk/seat zone occupancy manager
+│   ├── alerts.py               # Unattended item alert system
+│   └── study_space.py          # Smart Study Space orchestrator
 ├── api/
 │   ├── server.py               # FastAPI REST endpoints
 │   └── schemas.py              # Pydantic request/response models
 ├── utils/
 │   ├── logger.py               # Logging configuration
-│   ├── visualizer.py           # Bounding box, label, trail drawing
+│   ├── visualizer.py           # Bounding box, label, trail, study-space drawing
 │   └── video_writer.py         # Video output codec handler
 ├── web/                        # Next.js 14 frontend
 │   ├── app/
 │   │   ├── layout.tsx          # Root layout & metadata
 │   │   ├── page.tsx            # Landing page
 │   │   ├── demo/page.tsx       # Video upload + detection UI
-│   │   └── camera/page.tsx     # Live camera detection UI
+│   │   ├── camera/page.tsx     # Live camera detection UI
+│   │   └── study-space/page.tsx# Smart Study Space dashboard
 │   ├── tailwind.config.js
 │   └── package.json
 ├── cli.py                      # CLI interface
@@ -146,6 +158,15 @@ python cli.py detect --image photo.jpg --output result.jpg --json
 | `POST` | `/stream/start` | Start stream-based detection |
 | `POST` | `/stream/stop` | Stop active stream |
 
+### Study Space Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/study-space/detect-frame` | Frame detection + ownership analysis → annotated JPEG |
+| `GET` | `/study-space/status` | Current zones & active alerts |
+| `POST` | `/study-space/zones` | Configure desk zones at runtime |
+| `POST` | `/study-space/reset` | Reset alerts & zone timers |
+
 ### Example
 
 ```bash
@@ -161,16 +182,22 @@ All parameters are configurable via `config/default.yaml`:
 
 ```yaml
 model:
-  name: yolo26s.pt          # yolo26n / yolo26s / yolo26m / yolo26l
-  confidence: 0.25
+  name: yolo26l.pt          # yolo26n / yolo26s / yolo26m / yolo26l (large = best accuracy)
+  confidence: 0.15
   iou_threshold: 0.5
   device: "0"               # "0" = GPU, "cpu" = CPU
   half: true                # FP16 inference
-  img_size: 640
+  img_size: 1280            # higher res = better small object detection
 
 tracker:
   enabled: true
   type: bytetrack           # bytetrack / botsort
+
+study_space:
+  ownership_max_distance: 200
+  alerts:
+    unattended_timeout: 30
+    cooldown: 60
 
 visualization:
   show_fps: true

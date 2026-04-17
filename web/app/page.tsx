@@ -5,7 +5,7 @@ const stats = [
   { value: "80+", label: "Object Classes" },
   { value: "<30ms", label: "Inference Time" },
   { value: "30+", label: "FPS Real-Time" },
-  { value: "YOLO26", label: "Latest Model" },
+  { value: "Smart", label: "Study Space" },
 ];
 
 /* ── Page ─────────────────────────────────────────────────── */
@@ -24,6 +24,12 @@ export default function Home() {
             </span>
           </div>
           <div className="flex items-center gap-6">
+            <Link
+              href="/study-space"
+              className="px-4 py-2 rounded-lg border border-cyan-300 text-cyan-700 text-sm font-medium hover:bg-cyan-50 transition"
+            >
+              &#128218; Study Space
+            </Link>
             <Link
               href="/camera"
               className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition"
@@ -55,16 +61,23 @@ export default function Home() {
           </h1>
 
           <p className="text-lg md:text-xl text-gray-500 max-w-2xl mx-auto mb-10 leading-relaxed">
-            Upload any video and instantly detect, classify, and track objects
-            using state-of-the-art deep learning — directly from your browser.
+            Smart Study Space Monitor &mdash; detect, classify, and associate
+            objects with nearby people in real-time. Track seat occupancy and
+            unattended items using state-of-the-art YOLO26 deep learning.
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center flex-wrap">
             <Link
-              href="/demo"
+              href="/study-space"
               className="px-8 py-3.5 rounded-xl bg-gradient-to-r from-cyan-600 to-violet-600 text-white font-semibold text-lg hover:shadow-lg hover:shadow-cyan-500/25 transition-all"
             >
-              Upload &amp; Detect →
+              &#128218; Smart Study Space →
+            </Link>
+            <Link
+              href="/demo"
+              className="px-8 py-3.5 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold text-lg hover:border-cyan-300 hover:bg-cyan-50/50 transition-all"
+            >
+              Upload &amp; Detect
             </Link>
             <Link
               href="/camera"

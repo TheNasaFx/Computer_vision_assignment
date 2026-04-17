@@ -25,8 +25,11 @@ from api.schemas import (
     ModelSwitchRequest,
     StatusResponse,
     StreamStartRequest,
+    SetZonesRequest,
+    StudySpaceResponse,
 )
 from core.pipeline import DetectionPipeline
+from core.study_space import StudySpaceAnalyzer
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,7 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 
 # Module-level pipeline reference — set by create_app()
 _pipeline: DetectionPipeline | None = None
+_study_analyzer: StudySpaceAnalyzer | None = None
 _stream_thread: threading.Thread | None = None
 
 # Video processing jobs: job_id → {status, progress, ...}
@@ -47,10 +51,11 @@ def create_app(cfg: dict) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
-        global _pipeline
+        global _pipeline, _study_analyzer
         _pipeline = DetectionPipeline(cfg)
         _pipeline.detector.load()
-        logger.info("API: detector loaded")
+        _study_analyzer = StudySpaceAnalyzer(cfg)
+        logger.info("API: detector + study-space analyzer loaded")
         yield
         if _pipeline is not None:
             _pipeline.shutdown()
@@ -272,5 +277,75 @@ def create_app(cfg: dict) -> FastAPI:
                 "Access-Control-Expose-Headers": "X-Inference-Ms, X-Detections, X-Detection-Data",
             },
         )
+
+    # ── Study Space endpoints ──────────────────────────────────
+
+    @app.post("/study-space/detect-frame")
+    async def study_space_detect_frame(file: UploadFile = File(...)):
+        """Detect objects + run study-space analysis on a single frame.
+        Returns annotated JPEG with study-space overlays + JSON metadata."""
+        assert _pipeline is not None and _study_analyzer is not None
+        contents = await file.read()
+        arr = np.frombuffer(contents, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise HTTPException(400, "Invalid image")
+
+        # Detection with tracking
+        tracker_cfg = cfg.get("tracker", {})
+        if tracker_cfg.get("enabled", True):
+            frame_result = _pipeline.detector.detect_and_track(frame)
+        else:
+            frame_result = _pipeline.detector.detect(frame)
+
+        # Study-space analysis
+        ss_result = _study_analyzer.analyze(frame_result)
+
+        # Draw study-space overlay
+        vis = _pipeline.visualizer.draw_study_space(frame, ss_result)
+        _, buf = cv2.imencode(".jpg", vis, [cv2.IMWRITE_JPEG_QUALITY, 80])
+
+        import json as _json
+        ss_json = _json.dumps(ss_result.to_dict())
+
+        return StreamingResponse(
+            io.BytesIO(buf.tobytes()),
+            media_type="image/jpeg",
+            headers={
+                "X-Inference-Ms": str(round(frame_result.inference_ms, 1)),
+                "X-Detections": str(len(frame_result.detections)),
+                "X-Study-Space-Data": ss_json,
+                "Access-Control-Expose-Headers": "X-Inference-Ms, X-Detections, X-Study-Space-Data",
+            },
+        )
+
+    @app.get("/study-space/status")
+    async def study_space_status():
+        """Get current study-space state: zones, alerts."""
+        assert _study_analyzer is not None
+        zones = _study_analyzer.zone_manager.zones
+        alerts = _study_analyzer.alert_manager.active_alerts
+        return JSONResponse({
+            "zones": [z.to_dict() for z in zones],
+            "active_alerts": [a.to_dict() for a in alerts],
+        })
+
+    @app.post("/study-space/zones")
+    async def study_space_set_zones(req: SetZonesRequest):
+        """Configure desk zones at runtime."""
+        assert _study_analyzer is not None
+        zone_defs = [z.model_dump() for z in req.zones]
+        _study_analyzer.set_zones(zone_defs)
+        return JSONResponse({
+            "status": "zones_updated",
+            "num_zones": len(zone_defs),
+        })
+
+    @app.post("/study-space/reset")
+    async def study_space_reset():
+        """Reset study-space state (alerts, zone timers)."""
+        assert _study_analyzer is not None
+        _study_analyzer.reset()
+        return JSONResponse({"status": "reset"})
 
     return app

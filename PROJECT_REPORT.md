@@ -1,4 +1,4 @@
-# YOLO26 Real-Time Object Detection System — Төслийн Дэлгэрэнгүй Тайлан
+# Smart Study Space Monitor — YOLO26 Real-Time Detection System — Төслийн Дэлгэрэнгүй Тайлан
 
 ## Агуулга
 
@@ -6,14 +6,15 @@
 2. [Технологийн Стек](#2-технологийн-стек)
 3. [Системийн Архитектур](#3-системийн-архитектур)
 4. [Backend — Python FastAPI](#4-backend--python-fastapi)
-5. [Frontend — Next.js Web Application](#5-frontend--nextjs-web-application)
-6. [YOLO26 Detection Pipeline](#6-yolo26-detection-pipeline)
-7. [Dual-Loop Rendering Architecture](#7-dual-loop-rendering-architecture)
-8. [API Reference](#8-api-reference)
-9. [Configuration System](#9-configuration-system)
-10. [Deployment](#10-deployment)
-11. [Хөгжүүлэлтийн Явц](#11-хөгжүүлэлтийн-явц)
-12. [Дүгнэлт](#12-дүгнэлт)
+5. [Smart Study Space Module](#5-smart-study-space-module)
+6. [Frontend — Next.js Web Application](#6-frontend--nextjs-web-application)
+7. [YOLO26 Detection Pipeline](#7-yolo26-detection-pipeline)
+8. [Dual-Loop Rendering Architecture](#8-dual-loop-rendering-architecture)
+9. [API Reference](#9-api-reference)
+10. [Configuration System](#10-configuration-system)
+11. [Deployment](#11-deployment)
+12. [Хөгжүүлэлтийн Явц](#12-хөгжүүлэлтийн-явц)
+13. [Дүгнэлт](#13-дүгнэлт)
 
 ---
 
@@ -21,7 +22,7 @@
 
 ### 1.1 Зорилго
 
-Энэхүү төслийн зорилго нь **YOLO26** (You Only Look Once) загварыг ашиглан бодит цагийн объект илрүүлэлт (real-time object detection), ангилал (classification), болон хөөлт (tracking) хийх бүрэн функционал систем бүтээх юм. Систем нь веб интерфэйсээр дамжуулан хэрэглэгчид видео файл оруулах, камераар шууд илрүүлэлт хийх, REST API-аар програмчлалын хандалт хийх боломж олгоно.
+Энэхүү төслийн зорилго нь **YOLO26** (You Only Look Once) загварыг ашиглан **ухаалаг сурах орчны хяналтын систем (Smart Study Space Monitor)** бүтээх юм. Систем нь бодит цагийн объект илрүүлэлт (real-time object detection), ангилал (classification), хөөлт (tracking) хийхээс гадна хүн-объектын эзэмшлийн шинжилгээ (person-object ownership), суудлын бүсийн эзлэлт (zone occupancy), хариуцлагагүй эд зүйлсийн сэрэмжлүүлэг (unattended item alerts) гэсэн дэвшилтэт боломжуудыг агуулна. Веб интерфэйсээр дамжуулан хэрэглэгчид видео файл оруулах, камераар шууд илрүүлэлт хийх, REST API-аар програмчлалын хандалт хийх боломж олгоно.
 
 ### 1.2 Үндсэн Чадварууд
 
@@ -31,8 +32,13 @@
 | **Бодит цагийн илрүүлэлт** | Видео файл болон камерын шууд дүрсэнд объект илрүүлэх |
 | **60fps Smooth Playback** | Dual-loop архитектурын тусламжтайгаар тасалдалгүй тоглуулалт |
 | **Multi-Object Tracking** | ByteTrack / BoTSORT алгоритмаар объектуудад тогтвортой ID оноох |
+| **Person-Object Ownership** | Proximity-д суурилсан хүн-объект эзэмшлийн шинжилгээ |
+| **Zone Occupancy** | Polygon бүсүүдээр суудлын эзлэлтийг бодит цагт хянах |
+| **Unattended Item Alerts** | Эзэнгүй эд зүйлсийг timeout-аар илрүүлж сэрэмжлүүлэх |
+| **Study Space Dashboard** | Бүрэн функционал веб dashboard — stats, inventory, alerts |
 | **REST API** | FastAPI backend-ээр програмчлалын хандалт |
 | **Hot-Swap Models** | Runtime-д YOLO26 nano/small/medium/large загварууд хооронд шилжих |
+| **Өндөр Нарийвчлал** | YOLO26-Large загвар + 1280px resolution-ээр жижиг объект сайн таних |
 | **Docker Deployment** | Нэг командаар deploy хийх боломж |
 
 ### 1.3 Шийдсэн Асуудал
@@ -110,7 +116,7 @@
 │  │  (server.py) │   │  Detector    │   │  (Annotated JPEG      │ │
 │  │              │   │  (detector)  │   │   + JSON headers)     │ │
 │  └──────────────┘   └──────────────┘   └───────────────────────┘ │
-│                                                                   │
+│                                                                  │
 │  ┌──────────────┐   ┌──────────────┐   ┌───────────────────────┐ │
 │  │  ByteTrack   │   │  Event       │   │  Visualizer           │ │
 │  │  Tracker     │   │  Engine      │   │  (Box drawing)        │ │
@@ -141,13 +147,17 @@ Biydaalt/
 │   ├── tracker.py                # Object tracking & trail management
 │   ├── stream.py                 # Threaded async frame grabber
 │   ├── pipeline.py               # Үндсэн orchestrator
-│   └── events.py                 # ROI zone & line-crossing events
+│   ├── events.py                 # ROI zone & line-crossing events
+│   ├── proximity.py              # Person-object ownership engine
+│   ├── zones.py                  # Desk/seat zone occupancy manager
+│   ├── alerts.py                 # Unattended item alert system
+│   └── study_space.py            # Smart Study Space orchestrator
 ├── api/                          # REST API давхарга
-│   ├── server.py                 # FastAPI endpoints
-│   └── schemas.py                # Pydantic models
+│   ├── server.py                 # FastAPI endpoints (+ study-space endpoints)
+│   └── schemas.py                # Pydantic models (+ study-space schemas)
 ├── utils/                        # Туслах модулиуд
 │   ├── logger.py                 # Logging тохиргоо
-│   ├── visualizer.py             # Bounding box, label зурах
+│   ├── visualizer.py             # Bounding box, label, study-space overlay зурах
 │   └── video_writer.py           # Видео файл хадгалах
 ├── web/                          # Next.js frontend
 │   ├── app/
@@ -155,7 +165,8 @@ Biydaalt/
 │   │   ├── page.tsx              # Нүүр хуудас
 │   │   ├── globals.css           # Global styles
 │   │   ├── demo/page.tsx         # Видео upload + detection
-│   │   └── camera/page.tsx       # Камер detection
+│   │   ├── camera/page.tsx       # Камер detection
+│   │   └── study-space/page.tsx  # Smart Study Space dashboard
 │   ├── .env.local                # API URL тохиргоо
 │   ├── next.config.js            # Next.js тохиргоо
 │   ├── tailwind.config.js        # Tailwind CSS тохиргоо
@@ -219,11 +230,11 @@ class Detector:
 
 #### Ажиллах Зарчим
 
-1. **Model Loading**: `YOLO('yolo26s.pt')` — Ultralytics-ийн YOLO класс нь загварыг автоматаар татаж ачаална
+1. **Model Loading**: `YOLO('yolo26l.pt')` — Ultralytics-ийн YOLO класс нь загварыг автоматаар татаж ачаална. Large загвар нь small-аас ~50% илүү нарийвчлалтай
 2. **Device Detection**: CUDA GPU байгаа эсэхийг шалгаж, байвал GPU, үгүй бол CPU дээр ажиллана
 3. **FP16 (Half Precision)**: GPU дээр FP16 inference бол 2x хурдтай
 4. **Warm-up**: Эхний dummy inference ажиллуулж, загварыг "халаана" — бодит inference хурдтай эхлэхийн тулд
-5. **Inference**: `model.predict(frame, conf=0.25, iou=0.5, imgsz=640)` — confidence threshold, NMS IOU threshold тохируулж болно
+5. **Inference**: `model.predict(frame, conf=0.15, iou=0.5, imgsz=1280)` — бага confidence threshold нь илүү олон объект илрүүлэх, 1280px resolution нь жижиг объект илүү сайн таних боломж олгоно
 
 ### 4.2 Stream Module (`core/stream.py`)
 
@@ -357,8 +368,144 @@ Frame дээр detection үр дүнг дүрслэн зурна:
 - **Track ID**: `#1`, `#2` гэх мэт тогтвортой ID
 - **Trail**: Объектын хөдөлгөөний мөр (fade effect-тэй)
 - **HUD**: FPS, inference хугацаа, detection тоо, тоглуулах хурд
+- **Study Space Overlay**: Ownership тасархай шугам, zone polygon, unattended анхааруулга, HUD
 
-### 4.9 CLI Interface (`cli.py`)
+---
+
+## 5. Smart Study Space Module
+
+Энэ нь төслийн хамгийн дэвшилтэт хэсэг бөгөөд суурь object detection дээр суурилан **ухаалаг шинжилгээ** хийдэг.
+
+### 5.1 Proximity Engine (`core/proximity.py`)
+
+Хүн болон объектуудын хоорондох зайг Евклидийн зайгаар тооцож, **ownership (эзэмшил)** тодорхойлно.
+
+```python
+class ProximityEngine:
+    STUDY_OBJECT_CLASSES = [
+        "laptop", "cell phone", "book", "backpack", "handbag",
+        "bottle", "cup", "mouse", "keyboard", "suitcase", "umbrella"
+    ]
+    
+    def analyze(self, detections: list[Detection]) -> ProximityResult:
+        """Хүн бүрд хамгийн ойрхон объектуудыг хуваарилна"""
+        # 1. Person ба object detection-уудыг ялгах
+        # 2. Евклидийн зай тооцох (center point хооронд)
+        # 3. max_distance (200px) дотор байвал ownership оноох
+        # 4. Нэг объект → хамгийн ойрхон нэг хүнд хамаарна
+```
+
+**Ажиллах зарчим**:
+- Person detection-ийн center point ба object-ийн center point хоорондох Евклидийн зай тооцно
+- `max_distance=200` пиксел дотор байвал тухайн хүнд хамааруулна
+- Нэг объект зөвхөн хамгийн ойрхон нэг хүнд оноогдоно
+- Эзэнгүй объектууд (unowned) тусад нь жагсаагдана
+
+### 5.2 Zone Manager (`core/zones.py`)
+
+Ширээ/суудлын **polygon бүс** тодорхойлж, хүн тус бүс дотор байгаа эсэхийг хянана.
+
+```python
+@dataclass
+class DeskZone:
+    zone_id: str
+    label: str
+    polygon: list[list[int]]  # [[x1,y1], [x2,y2], ...]
+    occupied: bool = False
+    occupied_since: float | None = None
+
+class ZoneManager:
+    def update(self, persons: list[Detection]) -> ZoneStatus:
+        """Бүс бүрийн эзлэлтийг шинэчлэх"""
+        # cv2.pointPolygonTest() ашиглан person center бүс дотор байгаа эсэхийг шалгана
+```
+
+**Онцлогууд**:
+- OpenCV-ийн `cv2.pointPolygonTest()` ашиглан polygon containment шалгах
+- Runtime-д `/study-space/zones` endpoint-ээр бүс нэмэх/өөрчлөх боломжтой
+- `ZoneStatus`: total zones, occupied count, available count
+
+### 5.3 Alert Manager (`core/alerts.py`)
+
+Эзэнгүй (unattended) эд зүйлсийг timeout-аар илрүүлж **сэрэмжлүүлэг** гаргана.
+
+```python
+@dataclass
+class Alert:
+    alert_id: str
+    object_class: str
+    bbox: list[float]
+    duration: float      # Эзэнгүй байсан хугацаа (секунд)
+    created_at: float
+
+class AlertManager:
+    def update(self, unowned_objects: list[Detection]) -> list[Alert]:
+        """Эзэнгүй объектуудыг хянаж, 30 секунд давсан бол alert үүсгэх"""
+```
+
+**Тохиргоо**:
+- `unattended_timeout`: 30 секунд (энэ хугацаанд эзэнгүй бол alert)
+- `cooldown`: 60 секунд (нэг alert-ийг давтахгүй хугацаа)
+- Spatial key-д суурилсан объект tracking (frame хооронд)
+
+### 5.4 Study Space Orchestrator (`core/study_space.py`)
+
+Дээрх 3 модулийг нэгтгэж, **нэг frame-ийн бүрэн шинжилгээ** хийнэ.
+
+```python
+@dataclass
+class PersonInventory:
+    person: Detection
+    items: list[Detection]   # Тухайн хүнд хамаарах объектууд
+
+@dataclass
+class StudySpaceResult:
+    inventories: list[PersonInventory]
+    zone_status: ZoneStatus
+    alerts: list[Alert]
+    unowned_objects: list[Detection]
+
+class StudySpaceAnalyzer:
+    def analyze(self, frame_result: FrameResult) -> StudySpaceResult:
+        """Proximity → Zones → Alerts → Бүрэн үр дүн"""
+        proximity = self.proximity_engine.analyze(frame_result.detections)
+        zone_status = self.zone_manager.update(persons)
+        alerts = self.alert_manager.update(proximity.unowned_objects)
+        return StudySpaceResult(...)
+```
+
+### 5.5 Study Space Data Flow
+
+```
+Frame → YOLO26 Detection → FrameResult
+                              │
+                    ┌─────────▼──────────┐
+                    │  StudySpaceAnalyzer │
+                    │                    │
+                    │  ┌──────────────┐  │
+                    │  │ Proximity    │  │  persons + objects → ownership
+                    │  │ Engine       │  │  → PersonInventory[]
+                    │  └──────┬───────┘  │  → unowned objects[]
+                    │         │          │
+                    │  ┌──────▼───────┐  │
+                    │  │ Zone Manager │  │  persons → zone occupancy
+                    │  │              │  │  → ZoneStatus
+                    │  └──────┬───────┘  │
+                    │         │          │
+                    │  ┌──────▼───────┐  │
+                    │  │ Alert Manager│  │  unowned → timeout check
+                    │  │              │  │  → Alert[]
+                    │  └──────────────┘  │
+                    │                    │
+                    └────────┬───────────┘
+                             │
+                    StudySpaceResult
+                    (inventories, zones, alerts)
+```
+
+---
+
+### 5.9 CLI Interface (`cli.py`)
 
 ```bash
 # Webcam дээр бодит цагийн detection
@@ -376,9 +523,9 @@ python cli.py run --config my_config.yaml --source video.mp4
 
 ---
 
-## 5. Frontend — Next.js Web Application
+## 6. Frontend — Next.js Web Application
 
-### 5.1 Landing Page (`app/page.tsx`)
+### 6.1 Landing Page (`app/page.tsx`)
 
 Төслийн нүүр хуудас:
 
@@ -387,7 +534,7 @@ python cli.py run --config my_config.yaml --source video.mp4
 - **Stats Grid**: 80+ classes, <30ms inference, 30+ FPS, YOLO26
 - **Footer**: Технологийн жагсаалт, GitHub линк
 
-### 5.2 Video Upload Page (`app/demo/page.tsx`)
+### 6.2 Video Upload Page (`app/demo/page.tsx`)
 
 Хэрэглэгч видео файл сонгоно → видео тоглоно → бодит цагт detection overlay харуулна.
 
@@ -403,7 +550,7 @@ python cli.py run --config my_config.yaml --source video.mp4
 - **Display Canvas**: Видеоны full resolution дээр detection box-ыг зурна
 - **Scale Factor**: Capture координатыг display координат руу хөрвүүлэх (`bbox / scale`)
 
-### 5.3 Camera Page (`app/camera/page.tsx`)
+### 6.3 Camera Page (`app/camera/page.tsx`)
 
 Хөтөчийн камерыг `getUserMedia()` API-аар нээж, бодит цагт detection хийнэ.
 
@@ -413,7 +560,21 @@ python cli.py run --config my_config.yaml --source video.mp4
 - FPS, inference хугацаа, detection тоо
 - Permission denied, backend unavailable алдааны зохицуулалт
 
-### 5.4 Layout & Styles
+### 6.4 Study Space Dashboard (`app/study-space/page.tsx`)
+
+Сурах орчны хяналтын бүрэн dashboard:
+
+- **Camera/Video Input**: Камер болон видео файлаас frame авах
+- **Detection Overlay**: Canvas дээр bounding box, ownership шугам зурах
+- **Stats Cards**: Нийт хүн, объект тоо, inference хугацаа
+- **Person Inventory Panel**: Хүн бүрийн эзэмшлийн жагсаалт
+- **Zone Occupancy Bar**: Бүс бүрийн эзлэлт (occupied/vacant)
+- **Alerts Panel**: Эзэнгүй эд зүйлсийн сэрэмжлүүлэг
+- **Ownership Lines**: Хүн-объект хооронд тасархай шугам (dashed line)
+
+**Endpoint**: `POST /study-space/detect-frame` — annotated JPEG + `X-Study-Space-Data` header
+
+### 6.5 Layout & Styles
 
 - **`layout.tsx`**: Root layout, meta description, font тохиргоо
 - **`globals.css`**: Light theme (цагаан дэвсгэр), gradient-text, glass effect, animation
@@ -421,9 +582,9 @@ python cli.py run --config my_config.yaml --source video.mp4
 
 ---
 
-## 6. YOLO26 Detection Pipeline
+## 7. YOLO26 Detection Pipeline
 
-### 6.1 YOLO26 гэж юу вэ?
+### 7.1 YOLO26 гэж юу вэ?
 
 YOLO (You Only Look Once) нь нэг дамжуулалтаар (single forward pass) зураг дээрх бүх объектыг нэг дор илрүүлдэг deep learning загвар юм. YOLO26 нь энэ цувралын хамгийн сүүлийн хувилбар бөгөөд:
 
@@ -432,44 +593,48 @@ YOLO (You Only Look Once) нь нэг дамжуулалтаар (single forward
 - **Multi-scale**: Олон хэмжээсийн feature map ашиглана
 - **80 COCO анги**: person, bicycle, car, motorcycle, airplane, bus, train, truck, boat, traffic light, fire hydrant, stop sign, parking meter, bench, bird, cat, dog, horse, sheep, cow, elephant, bear, zebra, giraffe, backpack, umbrella, handbag, tie, suitcase, frisbee, skis, snowboard, sports ball, kite, baseball bat, baseball glove, skateboard, surfboard, tennis racket, bottle, wine glass, cup, fork, knife, spoon, bowl, banana, apple, sandwich, orange, broccoli, carrot, hot dog, pizza, donut, cake, chair, couch, potted plant, bed, dining table, toilet, TV, laptop, mouse, remote, keyboard, cell phone, microwave, oven, toaster, sink, refrigerator, book, clock, vase, scissors, teddy bear, hair drier, toothbrush
 
-### 6.2 Загварын Хувилбарууд
+### 7.2 Загварын Хувилбарууд
 
-| Загвар | Хэмжээ | Хурд (GPU) | Нарийвчлал | Тохиромжтой |
-|--------|--------|-----------|-----------|-------------|
-| `yolo26n.pt` | ~6MB | ~5ms | Бага | Гар утас, IoT төхөөрөмж |
-| `yolo26s.pt` | ~20MB | ~10ms | Дунд | Бодит цагийн хэрэглээ (default) |
-| `yolo26m.pt` | ~50MB | ~20ms | Сайн | Тэнцвэртэй хурд/нарийвчлал |
-| `yolo26l.pt` | ~80MB | ~30ms | Маш сайн | Өндөр нарийвчлал шаардлагатай |
+| Загвар | Хэмжээ | Хурд (GPU) | Нарийвчлал (mAP) | Тохиромжтой |
+|--------|--------|-----------|-------------------|-------------|
+| `yolo26n.pt` | ~6MB | ~5ms | ~39 | Гар утас, IoT төхөөрөмж |
+| `yolo26s.pt` | ~20MB | ~10ms | ~44 | Бодит цагийн хэрэглээ |
+| `yolo26m.pt` | ~50MB | ~20ms | ~49 | Тэнцвэртэй хурд/нарийвчлал |
+| `yolo26l.pt` | ~80MB | ~30ms | ~53 | **Өндөр нарийвчлал (default)** |
 
-### 6.3 Inference Pipeline
+> **Сонголт**: Энэ төсөлд `yolo26l.pt` (Large) загварыг сонгосон. Small загвараас ~50% илүү нарийвчлалтай бөгөөд study space-ийн жижиг объектуудыг (cup, phone, mouse, keyboard) илүү найдвартай илрүүлнэ.
+
+### 7.3 Inference Pipeline
 
 ```
 Input Frame (BGR, any size)
     │
     ▼
 Pre-processing
-    ├── Resize to 640×640 (letterbox padding)
+    ├── Resize to 1280×1280 (letterbox padding)
     ├── BGR → RGB
     ├── Normalize (0-255 → 0.0-1.0)
-    └── HWC → CHW → Batch (1, 3, 640, 640)
+    └── HWC → CHW → Batch (1, 3, 1280, 1280)
     │
     ▼
-YOLO26 Neural Network
+YOLO26-Large Neural Network
     ├── Backbone: Feature extraction (CSPDarknet variant)
     ├── Neck: Feature pyramid network (FPN + PAN)
     └── Head: Multi-scale detection heads
     │
     ▼
 Post-processing
-    ├── Confidence threshold filter (default: 0.25)
+    ├── Confidence threshold filter (0.15 — илүү олон объект илрүүлэх)
     ├── Non-Maximum Suppression (NMS, IOU: 0.5)
-    └── Coordinate rescaling (640×640 → original size)
+    └── Coordinate rescaling (1280×1280 → original size)
     │
     ▼
 Output: List[Detection(bbox, confidence, class_id, class_name)]
 ```
 
-### 6.4 Tracking Pipeline
+> **Яагаад 1280px?** Study space-д жижиг объектууд (утас, аяга, хулгана) олон байдаг. 640px resolution-д эдгээр объектууд хэт жижиг харагдаж, алга болдог. 1280px нь 4 дахин илүү пиксел (1280²/640²) боловсруулдаг тул жижиг объектын detection чанар мэдэгдэхүйц сайжирна.
+
+### 7.4 Tracking Pipeline
 
 ```
 Frame N Detections
@@ -488,16 +653,16 @@ Output: Detection + track_id (persistent across frames)
 
 ---
 
-## 7. Dual-Loop Rendering Architecture
+## 8. Dual-Loop Rendering Architecture
 
-### 7.1 Асуудал
+### 8.1 Асуудал
 
 Хэрэв видео тоглуулалт болон AI inference нэг loop-д ажиллавал:
 - Inference хугацаа ~100-500ms (CPU дээр)
 - Видео 2-5 FPS-ээр "гацаж" харагдана
 - Хэрэглэгчийн туршлага муу
 
-### 7.2 Шийдэл: Хоёр тусдаа Loop
+### 8.2 Шийдэл: Хоёр тусдаа Loop
 
 ```
 ┌─────────────────────────────────────┐
@@ -528,7 +693,7 @@ Output: Detection + track_id (persistent across frames)
 └─────────────────────────────────────┘
 ```
 
-### 7.3 Coordinate Scaling
+### 8.3 Coordinate Scaling
 
 Capture canvas нь max 640px хэмжээтэй (YOLO-ийн img_size-тай тааруулсан), гэхдээ display canvas нь видеоны full resolution.
 
@@ -543,7 +708,7 @@ const [x1, y1, x2, y2] = det.bbox.map((v) => v / scale);
 // → Capture coordinates → Display coordinates
 ```
 
-### 7.4 Давуу Тал
+### 8.4 Давуу Тал
 
 | Хуучин Арга | Dual-Loop |
 |-------------|-----------|
@@ -554,9 +719,9 @@ const [x1, y1, x2, y2] = det.bbox.map((v) => v / scale);
 
 ---
 
-## 8. API Reference
+## 9. API Reference
 
-### 8.1 `GET /health`
+### 9.1 `GET /health`
 
 Серверийн төлөв болон загварын мэдээллийг буцаана.
 
@@ -570,7 +735,7 @@ const [x1, y1, x2, y2] = det.bbox.map((v) => v / scale);
 }
 ```
 
-### 8.2 `POST /detect`
+### 9.2 `POST /detect`
 
 Нэг зураг дээр detection хийнэ.
 
@@ -593,7 +758,7 @@ const [x1, y1, x2, y2] = det.bbox.map((v) => v / scale);
 }
 ```
 
-### 8.3 `POST /detect-frame`
+### 9.3 `POST /detect-frame`
 
 Frame-by-frame detection — web frontend-д ашиглагдана.
 
@@ -606,7 +771,7 @@ Frame-by-frame detection — web frontend-д ашиглагдана.
   - `X-Detections`: `"3"`
   - `X-Detection-Data`: `"[{\"bbox\":[120,80,340,420],\"confidence\":0.92,\"class_id\":0,\"class_name\":\"person\"}]"`
 
-### 8.4 `POST /detect-video`
+### 9.4 `POST /detect-video`
 
 Бүтэн видео файлыг боловсруулна.
 
@@ -614,7 +779,7 @@ Frame-by-frame detection — web frontend-д ашиглагдана.
 
 **Response:** Боловсруулсан видео файл + detection metadata
 
-### 8.5 `POST /model`
+### 9.5 `POST /model`
 
 Runtime-д загвар солих.
 
@@ -635,23 +800,79 @@ Runtime-д загвар солих.
 }
 ```
 
+### 9.6 Study Space Endpoints
+
+#### `POST /study-space/detect-frame`
+
+Frame detection + ownership/zones/alerts шинжилгээ.
+
+**Request:** `multipart/form-data` — `file` field (JPEG frame)
+
+**Response:**
+- **Body**: Annotated JPEG (bounding box + ownership lines + zone overlay + alerts)
+- **Headers**:
+  - `X-Inference-Ms`: `"45.2"`
+  - `X-Detections`: `"8"`
+  - `X-Study-Space-Data`: JSON — inventories, zone_status, alerts
+
+**`X-Study-Space-Data` жишээ:**
+```json
+{
+  "inventories": [
+    {
+      "person": {"bbox": [100, 50, 300, 400], "track_id": 1},
+      "items": [
+        {"class_name": "laptop", "confidence": 0.91},
+        {"class_name": "cup", "confidence": 0.78}
+      ]
+    }
+  ],
+  "zone_status": {"total": 4, "occupied": 2, "available": 2},
+  "alerts": [
+    {"object_class": "backpack", "duration": 45.2}
+  ]
+}
+```
+
+#### `GET /study-space/status`
+
+Одоогийн zone эзлэлт болон идэвхтэй alert-ууд.
+
+#### `POST /study-space/zones`
+
+Runtime-д desk zone тодорхойлох.
+
+**Request:**
+```json
+{
+  "zones": [
+    {"zone_id": "desk1", "label": "Ширээ 1", "polygon": [[0,300],[200,300],[200,500],[0,500]]},
+    {"zone_id": "desk2", "label": "Ширээ 2", "polygon": [[250,300],[450,300],[450,500],[250,500]]}
+  ]
+}
+```
+
+#### `POST /study-space/reset`
+
+Бүх alert болон zone timer-ийг шинэчлэх.
+
 ---
 
-## 9. Configuration System
+## 10. Configuration System
 
-### 9.1 `config/default.yaml`
+### 10.1 `config/default.yaml`
 
 Бүх тохиргооны параметрүүдийг нэг файлд хадгална:
 
 ```yaml
 # ── Model ──
 model:
-  name: yolo26s.pt              # Загварын файл
-  confidence: 0.25              # Confidence threshold
+  name: yolo26l.pt              # Large загвар (хамгийн өндөр нарийвчлал)
+  confidence: 0.15              # Бага threshold → илүү олон объект илрүүлэх
   iou_threshold: 0.5            # NMS IOU threshold
   device: "0"                   # "0" = GPU, "cpu" = CPU
   half: true                    # FP16 inference
-  img_size: 640                 # Input resolution
+  img_size: 1280                # 1280px → жижиг объект сайн таних
 
 # ── Stream ──
 stream:
@@ -699,6 +920,26 @@ output:
   json_output: false
   json_path: "output/detections.json"
 
+# ── Study Space ──
+study_space:
+  ownership_max_distance: 200    # Эзэмшил тодорхойлох дээд зай (px)
+  object_classes:                # Хянах объектуудын жагсаалт
+    - laptop
+    - cell phone
+    - book
+    - backpack
+    - cup
+    - bottle
+    - mouse
+    - keyboard
+  zones:                         # Ширээний бүсүүд
+    - zone_id: desk1
+      label: "Ширээ 1"
+      polygon: [[0,300],[200,300],[200,500],[0,500]]
+  alerts:
+    unattended_timeout: 30       # Эзэнгүй timeout (секунд)
+    cooldown: 60                 # Alert давталтын хугацаа (секунд)
+
 # ── Server ──
 server:
   host: "0.0.0.0"
@@ -712,7 +953,7 @@ logging:
   console: true
 ```
 
-### 9.2 CLI Override
+### 10.2 CLI Override
 
 CLI-г ашиглан config параметрүүдийг дарж бичиж болно:
 
@@ -723,9 +964,9 @@ python cli.py run --source video.mp4 --model yolo26l.pt --save-video
 
 ---
 
-## 10. Deployment
+## 11. Deployment
 
-### 10.1 Docker
+### 11.1 Docker
 
 ```dockerfile
 FROM python:3.12-slim
@@ -739,7 +980,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # YOLO загварыг урьдчилан татах
-RUN python -c "from ultralytics import YOLO; YOLO('yolo26s.pt')"
+RUN python -c "from ultralytics import YOLO; YOLO('yolo26l.pt')"
 
 COPY . .
 EXPOSE 8000
@@ -759,7 +1000,7 @@ docker run --gpus all -p 8000:8000 yolo-detect
 docker run -p 8000:8000 yolo-detect
 ```
 
-### 10.2 Frontend Deployment (Vercel)
+### 11.2 Frontend Deployment (Vercel)
 
 Next.js frontend-г Vercel дээр deploy хийх:
 
@@ -768,7 +1009,7 @@ Next.js frontend-г Vercel дээр deploy хийх:
 3. Build command: `npm run build`
 4. Output: Static export
 
-### 10.3 Local Development
+### 11.3 Local Development
 
 ```bash
 # Terminal 1: Backend
@@ -784,9 +1025,9 @@ npm run dev
 
 ---
 
-## 11. Хөгжүүлэлтийн Явц
+## 12. Хөгжүүлэлтийн Явц
 
-### 11.1 Үе Шатууд
+### 12.1 Үе Шатууд
 
 | Үе Шат | Хугацаа | Хийгдсэн Ажил |
 |--------|---------|----------------|
@@ -796,10 +1037,13 @@ npm run dev
 | **4. Camera Feature** | 2-р долоо хоног | getUserMedia API, real-time camera detection |
 | **5. UI Polish** | 2-р долоо хоног | Light theme, responsive design, statistics |
 | **6. YOLO26 Upgrade** | 3-р долоо хоног | YOLO11 → YOLO26 шилжилт (загвар, config, UI) |
-| **7. Performance** | 3-р долоо хоног | Dual-loop architecture, 640px capture cap, coordinate scaling |
-| **8. Deployment** | 3-р долоо хоног | Docker, GitHub, Vercel, README |
+| **7. Performance** | 3-р долоо хоног | Dual-loop architecture, capture cap, coordinate scaling |
+| **8. Smart Study Space** | 4-р долоо хоног | Proximity engine, zone manager, alert system, orchestrator |
+| **9. Study Space UI** | 4-р долоо хоног | Dashboard page, ownership overlay, stats, inventory panel |
+| **10. Model Optimization** | 4-р долоо хоног | yolo26s → yolo26l, 640px → 1280px, confidence 0.25 → 0.15 |
+| **11. Deployment** | 4-р долоо хоног | Docker, GitHub, Vercel, README, PROJECT_REPORT |
 
-### 11.2 Тулгарсан Асуудлууд ба Шийдлүүд
+### 12.2 Тулгарсан Асуудлууд ба Шийдлүүд
 
 #### Асуудал 1: Video гацах (2 FPS)
 
@@ -807,14 +1051,14 @@ npm run dev
 
 **Шийдэл**: Dual-loop architecture — display loop (60fps) + background detection loop тусад нь ажиллана. Видео тасалдалгүй тоглоно, detection box-ууд background-аас шинэчлэгдэнэ.
 
-#### Асуудал 2: Detection box lag
+#### Асуудал 2: Жижиг объект таньж чадахгүй
 
-**Шалтгаан**: `yolo26l.pt` загвар CPU дээр ~500ms inference авдаг → box-ууд объектоос хоцорно.
+**Шалтгаан**: `yolo26s.pt` загвар + 640px resolution нь жижиг объектуудыг (cup, phone, mouse) мэдрэхгүй.
 
 **Шийдэл**: 
-1. `yolo26l.pt` → `yolo26s.pt` солих (~3x хурдан)
-2. Capture resolution-г max 640px-ээр хязгаарлах
-3. Box координатын scaling зөв хийх
+1. `yolo26s.pt` → `yolo26l.pt` солих (~50% нарийвчлал нэмэгдсэн)
+2. Resolution 640px → 1280px (4x илүү пиксел)
+3. Confidence threshold 0.25 → 0.15 (илүү олон объект илрүүлэх)
 
 #### Асуудал 3: CUDA байхгүй
 
@@ -828,41 +1072,58 @@ npm run dev
 
 **Шийдэл**: `git rm --cached`, `.gitignore`-д `*.mp4` нэмэх, `git commit --amend`, `git push --force`.
 
-### 11.3 Ашигласан Загварчлалын Хэв Маяг (Design Patterns)
+#### Асуудал 5: Person-Object Ownership нарийвчлал
+
+**Шалтгаан**: Ойрхон суусан хүмүүсийн объект буруу хүнд оноогдох.
+
+**Шийдэл**: Евклидийн зайд суурилсан greedy matching — нэг объект зөвхөн хамгийн ойрхон хүнд оноогдоно. `max_distance=200px` тохиргоогоор хязгаарласан.
+
+### 12.3 Ашигласан Загварчлалын Хэв Маяг (Design Patterns)
 
 | Pattern | Хэрэглээ |
 |---------|----------|
 | **Factory** | Detector загвар ачаалах, config-оос объект үүсгэх |
 | **Observer** | Event system — ROI zone enter/exit мэдэгдэл |
-| **Pipeline** | Stream → Detect → Track → Events → Visualize → Output |
+| **Pipeline** | Stream → Detect → Track → Study Space → Visualize → Output |
 | **Strategy** | Tracker type сонгох (ByteTrack / BoTSORT) |
+| **Composite** | StudySpaceAnalyzer нь Proximity + Zones + Alerts-ийг нэгтгэдэг |
 | **Producer-Consumer** | FrameGrabber (producer) + Pipeline (consumer) FIFO queue-ээр |
 
 ---
 
-## 12. Дүгнэлт
+## 13. Дүгнэлт
 
-### 12.1 Бүтээгдэхүүний Үнэлгээ
+### 13.1 Бүтээгдэхүүний Үнэлгээ
 
-Энэхүү төсөл нь **Computer Vision** хичээлийн хүрээнд бодит цагийн объект илрүүлэлтийн бүрэн функционал систем бүтээх зорилготой байсан бөгөөд дараах зорилтуудыг хангасан:
+Энэхүү төсөл нь **Computer Vision** хичээлийн хүрээнд бодит цагийн объект илрүүлэлт болон **ухаалаг сурах орчны хяналтын систем** бүтээх зорилготой байсан бөгөөд дараах зорилтуудыг хангасан:
 
-1. **YOLO26 загвар** — Хамгийн сүүлийн үеийн объект илрүүлэлтийн загвар хэрэглэсэн
-2. **Full-stack application** — Backend API + Frontend Web Interface
-3. **Бодит цагийн боловсруулалт** — Video болон камерын шууд detection
-4. **Мэргэжлийн архитектур** — Modular, configurable, Docker-ready
-5. **Performance оновчлол** — Dual-loop architecture, coordinate scaling, model tuning
+1. **YOLO26-Large загвар** — Хамгийн сүүлийн үеийн загварын өндөр нарийвчлалтай хувилбар (mAP ~53)
+2. **Full-stack application** — Backend API + Frontend Web Interface + Study Space Dashboard
+3. **Smart Study Space** — Person-object ownership, zone occupancy, unattended alerts
+4. **Өндөр нарийвчлал** — Large model + 1280px resolution + бага confidence threshold
+5. **Мэргэжлийн архитектур** — Modular, configurable, Docker-ready
+6. **Performance оновчлол** — Dual-loop architecture, coordinate scaling, FP16 inference
 
-### 12.2 Цаашдын Хөгжүүлэлт
+### 13.2 Загвар Оновчлолын Үр Дүн
+
+| Параметр | Өмнө | Дараа | Нөлөө |
+|----------|-------|-------|--------|
+| **Model** | yolo26s.pt (small) | yolo26l.pt (large) | ~50% нарийвчлал нэмэгдсэн |
+| **Resolution** | 640px | 1280px | Жижиг объект 4x сайн таних |
+| **Confidence** | 0.25 | 0.15 | Илүү олон объект илрүүлэх |
+
+### 13.3 Цаашдын Хөгжүүлэлт
 
 - CUDA суулгаж GPU inference идэвхжүүлэх (~10x хурдасгал)
-- Object counting, heatmap, dwell time шинжилгээ нэмэх
+- Heatmap, dwell time шинжилгээ нэмэх
 - WebSocket ашиглан HTTP overhead бууруулах
 - Multi-camera dashboard бүтээх
+- Zone auto-detection (автоматаар ширээ илрүүлэх)
 - Mobile-responsive UI сайжруулах
 
-### 12.3 Технологийн Нөлөө
+### 13.4 Технологийн Нөлөө
 
-Энэ төсөл нь Computer Vision, Deep Learning, Web Development, System Design зэрэг олон чиглэлийн мэдлэг, ур чадварыг нэгтгэж, бодит хэрэглээний түвшний систем бүтээсэн туршлага олгосон.
+Энэ төсөл нь Computer Vision, Deep Learning, Web Development, System Design зэрэг олон чиглэлийн мэдлэг, ур чадварыг нэгтгэж, бодит хэрэглээний түвшний систем бүтээсэн туршлага олгосон. Тусгайлан study space monitoring гэсэн бодит хэрэглээний тодорхой асуудлыг шийдэж, proximity analysis, zone management, alert system зэрэг дэвшилтэт боломжуудыг хэрэгжүүлсэн.
 
 ---
 

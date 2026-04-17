@@ -3,13 +3,13 @@
 # ═══════════════════════════════════════════════════════════════
 
 model:
-  name: yolo26s.pt            # yolo26n/s/m/l/x .pt
-  confidence: 0.25
+  name: yolo26l.pt            # yolo26n/s/m/l/x .pt  (large = best accuracy)
+  confidence: 0.15
   iou_threshold: 0.5
   max_detections: 100
   device: "0"                  # "0" for GPU, "cpu" for CPU
   half: true                   # FP16 inference
-  img_size: 640
+  img_size: 1280               # higher res = better small object detection
   classes: null                # null = all classes, or list e.g. [0, 1, 2]
 
 stream:
@@ -58,6 +58,30 @@ server:
   host: "0.0.0.0"
   port: 8000
   workers: 1
+
+study_space:
+  enabled: false               # Toggle study-space mode
+  ownership_max_distance: 200  # Max px distance to assign object→person
+  object_classes:              # COCO classes treated as personal items
+    - laptop
+    - cell phone
+    - book
+    - backpack
+    - handbag
+    - bottle
+    - cup
+    - mouse
+    - keyboard
+    - suitcase
+    - umbrella
+  zones: []                    # Desk/seat zones — list of {id, name, points}
+    # Example:
+    # - id: desk_1
+    #   name: "Desk 1"
+    #   points: [[100,200],[400,200],[400,500],[100,500]]
+  alerts:
+    unattended_timeout: 30     # Seconds before unattended item triggers alert
+    cooldown: 60               # Seconds between repeat alerts for same item
 
 logging:
   level: "INFO"                # DEBUG, INFO, WARNING, ERROR
