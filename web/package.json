@@ -3,12 +3,21 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "install-mediapipe": "node scripts/install-mediapipe.mjs",
+    "predev": "node scripts/install-mediapipe.mjs",
+    "prebuild": "node scripts/install-mediapipe.mjs",
+    "postinstall": "node scripts/install-mediapipe.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124",
+    "@mediapipe/face_mesh": "^0.4.1633559619",
+    "@mediapipe/hands": "^0.4.1675469240",
+    "@mediapipe/tasks-vision": "^0.10.35",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0"

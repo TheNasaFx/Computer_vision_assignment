@@ -2,16 +2,12 @@
 
 import Link from "next/link";
 import { useState, useRef, useCallback, useEffect } from "react";
+import {
+  DetectionStabilizer,
+  type Detection,
+} from "../../lib/detection-stabilizer";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-
-type Detection = {
-  bbox: number[];
-  confidence: number;
-  class_id: number;
-  class_name: string;
-  track_id: number | null;
-};
 
 const BOX_COLORS = [
   "#0891b2", "#7c3aed", "#dc2626", "#ea580c", "#16a34a",
@@ -26,6 +22,7 @@ export default function DemoPage() {
   const runningRef = useRef(false);
   const busyRef = useRef(false);
   const detectionsRef = useRef<Detection[]>([]);
+  const stabilizerRef = useRef(new DetectionStabilizer());
   const animRef = useRef(0);
 
   const [file, setFile] = useState<File | null>(null);
@@ -84,6 +81,7 @@ export default function DemoPage() {
     setTotalDetections(0);
     setDetections([]);
     detectionsRef.current = [];
+    stabilizerRef.current.reset();
     setDetCount(0);
     setFps(0);
     setInferenceMs(0);
@@ -159,20 +157,21 @@ export default function DemoPage() {
       });
       if (res.ok) {
         const infMs = parseFloat(res.headers.get("X-Inference-Ms") || "0");
-        const nDet = parseInt(res.headers.get("X-Detections") || "0", 10);
         const detData = res.headers.get("X-Detection-Data");
         setInferenceMs(infMs);
-        setDetCount(nDet);
         setTotalFrames((p) => p + 1);
-        setTotalDetections((p) => p + nDet);
+        let stableDets = stabilizerRef.current.update([], performance.now());
         if (detData) {
           try {
             const parsed = JSON.parse(detData);
-            const dets = parsed.detections || [];
-            setDetections(dets);
-            detectionsRef.current = dets;
+            const dets: Detection[] = parsed.detections || [];
+            stableDets = stabilizerRef.current.update(dets, performance.now());
           } catch {}
         }
+        setDetections(stableDets);
+        detectionsRef.current = stableDets;
+        setDetCount(stableDets.length);
+        setTotalDetections((p) => p + stableDets.length);
         setFps(Math.round(1000 / (performance.now() - t0)));
       }
     } catch (err: any) {
@@ -198,6 +197,7 @@ export default function DemoPage() {
     setTotalDetections(0);
     setDetections([]);
     detectionsRef.current = [];
+    stabilizerRef.current.reset();
     busyRef.current = false;
     video.currentTime = 0;
     video.play();
@@ -227,6 +227,7 @@ export default function DemoPage() {
     setTotalDetections(0);
     setDetections([]);
     detectionsRef.current = [];
+    stabilizerRef.current.reset();
     setDetCount(0);
     setFps(0);
     setInferenceMs(0);

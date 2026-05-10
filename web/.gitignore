@@ -2,3 +2,7 @@ node_modules/
 .next/
 out/
 .env.local
+
+# Self-hosted MediaPipe assets — regenerated from node_modules by
+# scripts/install-mediapipe.mjs (postinstall hook)
+public/mediapipe/

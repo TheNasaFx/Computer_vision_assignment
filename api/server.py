@@ -182,14 +182,25 @@ def create_app(cfg: dict) -> FastAPI:
             class_counts: dict[str, int] = {}
             total_inf_ms = 0.0
             frame_count = 0
+            _pipeline.tracker.reset()
 
             while cap.isOpened():
                 ret, frame = cap.read()
                 if not ret:
                     break
 
-                result = _pipeline.detector.detect(frame)
-                vis = _pipeline.visualizer.draw(frame, result, {}, 0.0,
+                tracker_cfg = cfg.get("tracker", {})
+                if tracker_cfg.get("enabled", True):
+                    result = _pipeline.detector.detect_and_track(
+                        frame,
+                        tracker_type=tracker_cfg.get("type", "bytetrack"),
+                    )
+                    _pipeline.tracker.update(result.detections)
+                    tracks = _pipeline.tracker.tracks
+                else:
+                    result = _pipeline.detector.detect(frame)
+                    tracks = {}
+                vis = _pipeline.visualizer.draw(frame, result, tracks, 0.0,
                                                 playback_speed=1.0, paused=False)
                 writer.write(vis)
 
@@ -254,8 +265,18 @@ def create_app(cfg: dict) -> FastAPI:
         if frame is None:
             raise HTTPException(400, "Invalid image")
 
-        result = _pipeline.detector.detect(frame)
-        vis = _pipeline.visualizer.draw(frame, result, {}, 0.0,
+        tracker_cfg = cfg.get("tracker", {})
+        if tracker_cfg.get("enabled", True):
+            result = _pipeline.detector.detect_and_track(
+                frame,
+                tracker_type=tracker_cfg.get("type", "bytetrack"),
+            )
+            _pipeline.tracker.update(result.detections)
+            tracks = _pipeline.tracker.tracks
+        else:
+            result = _pipeline.detector.detect(frame)
+            tracks = {}
+        vis = _pipeline.visualizer.draw(frame, result, tracks, 0.0,
                                         playback_speed=1.0, paused=False)
 
         _, buf = cv2.imencode(".jpg", vis, [cv2.IMWRITE_JPEG_QUALITY, 80])
@@ -275,6 +296,42 @@ def create_app(cfg: dict) -> FastAPI:
                 "X-Detections": str(len(result.detections)),
                 "X-Detection-Data": det_summary,
                 "Access-Control-Expose-Headers": "X-Inference-Ms, X-Detections, X-Detection-Data",
+            },
+        )
+
+    # ── Pose-only endpoint (Magic Mirror) ──────────────────────
+
+    @app.post("/pose-frame")
+    async def pose_frame(file: UploadFile = File(...)):
+        """Lightweight pose-only inference.
+
+        Returns 17-keypoint COCO pose for every detected person as JSON,
+        without running the full object detector or producing an annotated
+        image. Designed for the Magic Mirror drum-mode loop where the only
+        thing the client needs is wrist / elbow / shoulder positions.
+        """
+        assert _study_analyzer is not None
+        contents = await file.read()
+        arr = np.frombuffer(contents, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            raise HTTPException(400, "Invalid image")
+
+        if not _study_analyzer.pose.available:
+            raise HTTPException(
+                503,
+                "Pose model not available. Check that yolo*-pose.pt loaded "
+                "successfully on server start.",
+            )
+
+        payload = _study_analyzer.pose.estimate_raw(frame)
+        return JSONResponse(
+            payload,
+            headers={
+                "X-Inference-Ms": str(payload.get("inference_ms", 0)),
+                "X-Person-Count": str(len(payload.get("persons", []))),
+                "Access-Control-Expose-Headers":
+                    "X-Inference-Ms, X-Person-Count",
             },
         )
 
@@ -298,8 +355,8 @@ def create_app(cfg: dict) -> FastAPI:
         else:
             frame_result = _pipeline.detector.detect(frame)
 
-        # Study-space analysis
-        ss_result = _study_analyzer.analyze(frame_result)
+        # Study-space analysis (pass raw frame so pose model can run)
+        ss_result = _study_analyzer.analyze(frame, frame_result)
 
         # Draw study-space overlay
         vis = _pipeline.visualizer.draw_study_space(frame, ss_result)
@@ -321,13 +378,15 @@ def create_app(cfg: dict) -> FastAPI:
 
     @app.get("/study-space/status")
     async def study_space_status():
-        """Get current study-space state: zones, alerts."""
+        """Get current study-space state: zones, ownerships, alerts."""
         assert _study_analyzer is not None
         zones = _study_analyzer.zone_manager.zones
-        alerts = _study_analyzer.alert_manager.active_alerts
+        alerts = _study_analyzer.abandonment_monitor.active_alerts
+        memories = _study_analyzer.ownership_tracker.memories
         return JSONResponse({
             "zones": [z.to_dict() for z in zones],
             "active_alerts": [a.to_dict() for a in alerts],
+            "tracked_objects": [m.to_dict() for m in memories.values()],
         })
 
     @app.post("/study-space/zones")
