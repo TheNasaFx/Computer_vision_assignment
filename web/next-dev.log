@@ -1,0 +1,31 @@
+
+> yolo-detection-web@1.0.0 predev
+> node scripts/install-mediapipe.mjs
+
+[install-mediapipe] ✓ tasks-vision/wasm copied to public/mediapipe/tasks/wasm/
+
+> yolo-detection-web@1.0.0 dev
+> next dev --port 3000
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 3.5s
+ ○ Compiling / ...
+ ✓ Compiled / in 3.9s (497 modules)
+ GET / 200 in 4249ms
+ ✓ Compiled in 409ms (254 modules)
+ GET / 200 in 56ms
+ ○ Compiling /study-space ...
+ ✓ Compiled /study-space in 648ms (495 modules)
+ GET /study-space 200 in 815ms
+ GET / 200 in 51ms
+ ○ Compiling /camera ...
+ ✓ Compiled /camera in 558ms (503 modules)
+ ✓ Compiled /demo in 501ms (509 modules)
+ ○ Compiling /magic-mirror ...
+ ✓ Compiled /magic-mirror in 996ms (529 modules)
+ GET / 200 in 162ms
+ GET /study-space 200 in 80ms
